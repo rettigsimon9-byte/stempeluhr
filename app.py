@@ -23,7 +23,8 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, PlainTextResponse
+from fastapi.responses import (HTMLResponse, JSONResponse, PlainTextResponse,
+                               RedirectResponse)
 from sqlalchemy import (Integer, Date, DateTime, String, create_engine, select)
 from sqlalchemy.orm import (DeclarativeBase, Mapped, Session, mapped_column)
 
@@ -99,8 +100,11 @@ def fmt_time(dt: datetime | None) -> str:
 
 # --- Stempeln (NFC ruft das auf) -------------------------------------------
 @app.get("/s/{token}")
-def stamp(token: str):
+def stamp(token: str, fmt: str = ""):
+    """NFC-Scan: stempelt ein/aus. fmt=json -> JSON-Antwort für Kurzbefehle."""
     if token != TOKEN:
+        if fmt == "json":
+            return JSONResponse({"ok": False, "message": "Ungültiger Token"}, status_code=403)
         return PlainTextResponse("Ungültiger Token.", status_code=403)
     today = now_local().date()
     now = now_local()
@@ -118,6 +122,8 @@ def stamp(token: str):
             msg = f"🏁 Ausgestempelt um {now.strftime('%H:%M')}  ({fmt_hours(duration(e))} Std.)"
         else:
             msg = "ℹ️ Heute bereits Kommen & Gehen erfasst – Scan ignoriert."
+    if fmt == "json":
+        return JSONResponse({"ok": True, "message": msg})
     return RedirectResponse(f"/?t={token}&msg={quote(msg)}", status_code=303)
 
 
